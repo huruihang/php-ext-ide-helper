@@ -1,6 +1,7 @@
+#!/usr/bin/env php
 <?php
 
-$extName = isset($argv[1]) ? $argv[1] : 0;
+$extName = isset($argv[1]) ? $argv[1] : "";
 $extName OR die("ext name is not null!\n");
 extension_loaded($extName) OR die("{$extName} Not Found\n");
 
@@ -130,13 +131,13 @@ foreach ($ReflectionExtension->getClasses() as $k => $v) {
 function getParameterModifiers($ReflectionParameterList)
 {
     $str = '';
-    foreach ($ReflectionParameterList as $kkk => $vvv) {
-        $isOptional = $vvv->isOptional();
-        $isRef = $vvv->isPassedByReference();
-        $type = $vvv->getType() ? $vvv->getType()->getName() . " " : "";
+    foreach ($ReflectionParameterList as $k => $v) {
+        $isOptional = $v->isOptional();
+        $isRef = $v->isPassedByReference();
+        $type = $v->getType() ? $v->getType()->getName() . " " : "";
         $ref = $isRef ? "&" : "";
         $defaultValue = $isOptional ? " = null" : "";
-        $str .= "{$type}{$ref}\$" . $vvv->getName() . "{$defaultValue}, ";
+        $str .= "{$type}{$ref}\$" . $v->getName() . "{$defaultValue}, ";
     }
     $str = rtrim($str, ", ");
     return $str;
