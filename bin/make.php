@@ -15,7 +15,7 @@ $tab = "    ";
 
 
 //生成版本
-file_put_contents("{$srcPath}/__version.txt", $ReflectionExtension->getVersion());
+file_put_contents("{$srcPath}/__version.txt", $extName . " " . $ReflectionExtension->getVersion());
 
 
 //生成常量
@@ -37,13 +37,15 @@ if ($content) file_put_contents("{$srcPath}/__functions.php", $phpDeclare . $con
 
 //生成类
 foreach ($ReflectionExtension->getClasses() as $k => $v) {
-    $classPath = $srcPath . DIRECTORY_SEPARATOR . strtr($k, "\\", $DS) . ".php";
+    $classFullName = $k;
+    $classShortName = $v->getShortName();
+    $classPath = $srcPath . DIRECTORY_SEPARATOR . strtr($classFullName, "\\", $DS) . ".php";
     $dirPath = dirname($classPath);
     file_exists($dirPath) OR mkdir($dirPath, 0644, 1);
     $content = $phpDeclare;
 
     $namespaceName = $v->getNamespaceName();
-    if ($onlyNamespace && !$namespaceName && $k{0} !== ucfirst($k){0}) continue;
+    if ($onlyNamespace && !$namespaceName && $classFullName{0} !== ucfirst($classFullName){0}) continue;
     $content .= $namespaceName ? "namespace {$namespaceName};\n\n" : "";
 
     $isInterface = $v->isInterface();
@@ -56,7 +58,7 @@ foreach ($ReflectionExtension->getClasses() as $k => $v) {
         $content .= $modifierNames ? "{$modifierNames} class " : "class ";
     }
 
-    $content .= $v->getShortName();
+    $content .= $classShortName;
 
     $parentClass = $v->getParentClass();
     $parentProperties = [];
@@ -117,6 +119,7 @@ foreach ($ReflectionExtension->getClasses() as $k => $v) {
         $modifierNames = implode(" ", \Reflection::getModifierNames($modifiers));
         //为了不让ide报错
         $functionBody = $methodName === "__toString" ? "return \"\";" : "";
+        $methodName = renameMethodByExtName($extName, $classFullName, $methodName);
         $content .= "{$tab}{$modifierNames} function {$methodName}({$parameterModifiers})";
         $content .= $isInterface ? ";" : "{{$functionBody}}";
         $content .= PHP_EOL;
@@ -141,4 +144,32 @@ function getParameterModifiers($ReflectionParameterList)
     }
     $str = rtrim($str, ", ");
     return $str;
+}
+
+
+function renameMethodByExtName($extName, $className, $methodName)
+{
+    $rename = '';
+    switch ($extName) {
+        case 'redis':
+            $redisRenameMethodList = getRedisRenameMethodList();
+            $methodNameLower = strtolower($methodName);
+            $rename .= isset($redisRenameMethodList[$methodNameLower]) ? $redisRenameMethodList[$methodNameLower] : $methodName;
+            break;
+        default:
+            $rename .= $methodName;
+    }
+    return $rename;
+}
+
+function getRedisRenameMethodList()
+{
+    static $data;
+    if ($data === null) {
+        $str = 'setEx,pSetEx,setNx,getSet,randomKey,renameKey,renameNx,getMultiple,incrBy,incrByFloat,decrBy,getRange,setRange,getBit,setBit,strLen,getKeys,sortAsc,sortAscAlpha,sortDesc,sortDescAlpha,lPush,rPush,lPushX,rPushX,lPop,rPop,blPop,brPop,lSize,lRemove,listTrim,lGet,lGetRange,lSet,lInsert,sAdd,sAddArray,sSize,sRemove,sMove,sPop,sRandMember,sContains,sMembers,sInter,sInterStore,sUnion,sUnionStore,sDiff,sDiffStore,setTimeout,bgSave,lastSave,flushDB,flushAll,dbSize,bgRewriteAOF,slaveOf,bitOp,bitCount,bitPos,mSet,mSetNx,rPopLPush,bRPopLPush,zAdd,zDelete,zRange,zRevRange,zRangeByScore,zRevRangeByScore,zRangeByLex,zRevRangeByLex,zLexCount,zRemRangeByLex,zCount,zDeleteRangeByScore,zDeleteRangeByRank,zCard,zScore,zRank,zRevRank,zInter,zUnion,zIncrBy,expireAt,pexpireAt,hGet,hSet,hSetNx,hDel,hLen,hKeys,hVals,hGetAll,hExists,hIncrBy,hIncrByFloat,hMset,hMget,hStrLen,pSubscribe,pUnsubscribe,evalSha,getLastError,clearLastError,hScan,zScan,sScan,getOption,setOption,slowLog,rawCommand,geoAdd,geoHash,geoPos,geoDist,geoRadius,geoRadiusByMember,getHost,getPort,getDBNum,getTimeout,getReadTimeout,getPersistentID,getAuth,isConnected,getMode,pubSub,lLen,sGetMembers,mGet,zUnionStore,zInterStore,zRemove,zRem,zRemoveRangeByScore,zRemRangeByScore,zRemRangeByRank,zSize,lRem,lTrim,lIndex,lRange,sCard,sRem,sIsMember,zReverseRange,sendEcho,evaluateSha,pfAdd,pfCount,pfMerge';
+        foreach (explode(",", $str) as $v) {
+            $data[strtolower($v)] = $v;
+        }
+    }
+    return $data;
 }
